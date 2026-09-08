@@ -1,0 +1,32 @@
+# Terraform
+**/.terraform/**
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+# nunca versionar tfvars com valores reais (senhas, etc.)
+*.auto.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/venv/
+**/.venv/
+**/*.egg-info/
+
+# Env / segredos
+.env
+.env.*
+*.pem
+*.key
+
+# IDE / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
