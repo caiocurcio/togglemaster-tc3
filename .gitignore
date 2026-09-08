@@ -30,3 +30,6 @@ override.tf.json
 .idea/
 .DS_Store
 Thumbs.db
+
+# backend.hcl tem o nome do bucket do state remoto; mantemos so o .example versionado
+infra/envs/*/backend.hcl
