@@ -25,6 +25,12 @@ variable "node_instance_types" {
   default     = ["t3.medium"]
 }
 
+variable "node_ami_type" {
+  description = "Tipo de AMI dos nodes. AL2023 e a familia atual recomendada pela AWS (a antiga AL2 vem sendo descontinuada release a release)."
+  type        = string
+  default     = "AL2023_x86_64_STANDARD"
+}
+
 variable "node_capacity_type" {
   description = "ON_DEMAND ou SPOT (SPOT e mais barato, mas os nodes podem ser reclamados pela AWS a qualquer momento)"
   type        = string

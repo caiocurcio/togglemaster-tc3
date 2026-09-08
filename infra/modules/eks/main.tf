@@ -101,6 +101,7 @@ resource "aws_eks_node_group" "default" {
 
   instance_types = var.node_instance_types
   capacity_type  = var.node_capacity_type
+  ami_type       = var.node_ami_type
 
   scaling_config {
     desired_size = var.node_desired_size

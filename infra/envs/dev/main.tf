@@ -56,7 +56,9 @@ module "rds" {
       username = "auth_app"
     }
     flag = {
-      db_name  = "flag"
+      # "flag" e palavra reservada pela API do RDS para o parametro DBName
+      # (nao e do Postgres em si, e uma regra da propria AWS) - usamos "flagdb".
+      db_name  = "flagdb"
       username = "flag_app"
     }
     targeting = {
