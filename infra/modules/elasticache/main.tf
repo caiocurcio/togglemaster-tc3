@@ -14,13 +14,15 @@ resource "aws_security_group" "redis" {
 }
 
 resource "aws_security_group_rule" "allow_redis" {
-  for_each                 = toset(var.allowed_security_group_ids)
+  # Mesmo motivo do modulo rds: count em vez de for_each, porque o
+  # security group id do EKS so e conhecido depois do apply do modulo eks.
+  count                    = length(var.allowed_security_group_ids)
   type                     = "ingress"
   from_port                = 6379
   to_port                  = 6379
   protocol                 = "tcp"
   security_group_id        = aws_security_group.redis.id
-  source_security_group_id = each.value
+  source_security_group_id = var.allowed_security_group_ids[count.index]
 }
 
 resource "aws_security_group_rule" "allow_egress_all" {
