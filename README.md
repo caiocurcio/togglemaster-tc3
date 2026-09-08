@@ -40,3 +40,37 @@ docs/                # relatorio de entrega, diagramas, evidencias
 
 Projeto em construcao, passo a passo, como parte do Tech Challenge da
 Fase 3 da pos-graduacao em Arquitetura Cloud e DevOps (FIAP/POSTECH).
+
+## Como testar localmente (sem AWS)
+
+Com Docker Desktop instalado na sua máquina (fora deste ambiente), na raiz do projeto:
+
+```bash
+docker compose up --build
+```
+
+Isso sobe os 5 microsserviços, 3 bancos Postgres (um por serviço com estado) e um Redis.
+Sem credenciais AWS, o `evaluation` some sem publicar no SQS e o `analytics` não inicia o
+consumidor da fila — mas dá pra validar toda a lógica de negócio, incluindo a chamada
+HTTP entre `evaluation`, `flag` e `targeting`.
+
+```bash
+# 1. cria a flag "novo-checkout" desligada
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"name": "novo-checkout", "is_enabled": true}' \
+  http://localhost:5002/flags
+
+# 2. define que 50% dos usuários (por hash do user_id) recebem a flag
+curl -X PUT -H "Content-Type: application/json" \
+  -d '{"rollout_percentage": 50, "user_whitelist": ["vip-1"], "user_blacklist": []}' \
+  http://localhost:5003/targeting/novo-checkout
+
+# 3. avalia a flag pra um usuário específico (evaluation chama flag + targeting e cacheia no Redis)
+curl "http://localhost:5004/evaluate/novo-checkout?user_id=vip-1"
+
+# 4. cria um client de auth e emite um token JWT
+curl -X POST -H "Content-Type: application/json" -d '{"name": "postman"}' http://localhost:5001/clients
+curl -X POST -H "Content-Type: application/json" -d '{"api_key": "<api_key retornada acima>"}' http://localhost:5001/token
+```
+
+Para encerrar: `docker compose down -v` (o `-v` também apaga os volumes dos bancos).

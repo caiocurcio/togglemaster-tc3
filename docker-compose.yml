@@ -1,0 +1,123 @@
+services:
+  auth-db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=auth
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d auth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  flag-db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=flag
+    volumes:
+      - flag_db_data:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d flag"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  targeting-db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=targeting
+    volumes:
+      - targeting_db_data:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d targeting"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth:
+    build: ./services/auth
+    ports:
+      - "5001:5000"
+    environment:
+      - DB_HOST=auth-db
+      - DB_PORT=5432
+      - DB_NAME=auth
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - JWT_SECRET=dev-secret-change-me
+    depends_on:
+      auth-db:
+        condition: service_healthy
+
+  flag:
+    build: ./services/flag
+    ports:
+      - "5002:5000"
+    environment:
+      - DB_HOST=flag-db
+      - DB_PORT=5432
+      - DB_NAME=flag
+      - DB_USER=user
+      - DB_PASSWORD=password
+    depends_on:
+      flag-db:
+        condition: service_healthy
+
+  targeting:
+    build: ./services/targeting
+    ports:
+      - "5003:5000"
+    environment:
+      - DB_HOST=targeting-db
+      - DB_PORT=5432
+      - DB_NAME=targeting
+      - DB_USER=user
+      - DB_PASSWORD=password
+    depends_on:
+      targeting-db:
+        condition: service_healthy
+
+  evaluation:
+    build: ./services/evaluation
+    ports:
+      - "5004:5000"
+    environment:
+      - FLAG_SERVICE_URL=http://flag:5000
+      - TARGETING_SERVICE_URL=http://targeting:5000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # SQS_QUEUE_URL fica vazia de propósito no teste local: sem ela, publish_event() não faz nada.
+    depends_on:
+      flag:
+        condition: service_started
+      targeting:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  analytics:
+    build: ./services/analytics
+    ports:
+      - "5005:5000"
+    # Sem AWS_REGION/SQS_QUEUE_URL/credenciais reais, o consumidor apenas loga um aviso e
+    # não inicia; o endpoint /health continua funcionando normalmente.
+
+volumes:
+  auth_db_data:
+  flag_db_data:
+  targeting_db_data:
