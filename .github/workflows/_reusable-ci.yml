@@ -54,7 +54,7 @@ jobs:
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
       - name: Roda pytest
         working-directory: services/${{ inputs.service }}
-        run: python -m pytest -vpytest -v
+        run: python -m pytest -v
 
   sast:
     name: SAST (bandit)
@@ -115,7 +115,7 @@ jobs:
         run: docker build -t "local/${{ inputs.service }}:${{ steps.tag.outputs.value }}" .
 
       - name: Trivy image scan - bloqueia em vulnerabilidade CRITICAL
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: local/${{ inputs.service }}:${{ steps.tag.outputs.value }}
           severity: CRITICAL
