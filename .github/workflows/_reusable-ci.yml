@@ -54,7 +54,7 @@ jobs:
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
       - name: Roda pytest
         working-directory: services/${{ inputs.service }}
-        run: pytest -v
+        run: python -m pytest -vpytest -v
 
   sast:
     name: SAST (bandit)
@@ -76,7 +76,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Trivy filesystem scan - bloqueia em vulnerabilidade CRITICAL
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: services/${{ inputs.service }}
