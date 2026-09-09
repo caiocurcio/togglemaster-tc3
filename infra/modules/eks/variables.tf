@@ -4,9 +4,9 @@ variable "project_name" {
 }
 
 variable "kubernetes_version" {
-  description = "Versao do Kubernetes do cluster EKS"
+  description = "Versao do Kubernetes do cluster EKS. Deixe null (padrao) para o Terraform aceitar a versao que a AWS ja provisionou/recomenda, em vez de travar um numero que pode ficar indisponivel com o tempo (foi exatamente isso que aconteceu: pedimos 1.30 e a AWS ja tinha provisionado 1.31)."
   type        = string
-  default     = "1.30"
+  default     = null
 }
 
 variable "cluster_subnet_ids" {
