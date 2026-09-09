@@ -1,0 +1,26 @@
+name: CI - flag
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/flag/**"
+      - ".github/workflows/ci-flag.yml"
+      - ".github/workflows/_reusable-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "services/flag/**"
+      - ".github/workflows/ci-flag.yml"
+      - ".github/workflows/_reusable-ci.yml"
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_reusable-ci.yml
+    with:
+      service: flag

@@ -50,7 +50,8 @@ def consume_loop():
             messages = response.get("Messages", [])
             for message in messages:
                 body = json.loads(message["Body"])
-                event_id = f"{body.get('ts', datetime.now(timezone.utc).isoformat())}#{uuid.uuid4()}"
+                ts = body.get("ts", datetime.now(timezone.utc).isoformat())
+                event_id = f"{ts}#{uuid.uuid4()}"
                 table.put_item(
                     Item={
                         "flag_name": body["flag_name"],
@@ -92,4 +93,9 @@ def get_events(flag_name):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    # Usado so em desenvolvimento local (fora do Docker). Em producao quem
+    # sobe o servico e' o Gunicorn (ver Dockerfile), nunca este bloco.
+    # bind em 0.0.0.0 e' intencional: dentro de um container isso e' o que
+    # permite o Kubernetes/Docker alcancar o processo - nao expoe nada que
+    # o Service/Ingress do K8s ja nao decida expor.
+    app.run(host="0.0.0.0", port=5000)  # nosec B104

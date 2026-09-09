@@ -1,0 +1,6 @@
+[flake8]
+# 100 caracteres em vez do padrao de 79 do PEP8 - os services usam linhas um
+# pouco mais longas (ex: mensagens de erro em portugues) e nao ha ganho real
+# em quebrar isso à força.
+max-line-length = 100
+exclude = .venv,venv,__pycache__,.git,.terraform

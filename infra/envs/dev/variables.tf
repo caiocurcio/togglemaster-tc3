@@ -34,3 +34,9 @@ variable "k8s_namespace" {
   type        = string
   default     = "togglemaster"
 }
+
+variable "github_repo" {
+  description = "Repositorio GitHub (owner/repo) autorizado a assumir a role de CI via OIDC"
+  type        = string
+  default     = "caiocurcio/togglemaster-tc3"
+}

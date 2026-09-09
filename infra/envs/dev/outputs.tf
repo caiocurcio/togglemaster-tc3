@@ -39,3 +39,8 @@ output "evaluation_irsa_role_arn" {
 output "analytics_irsa_role_arn" {
   value = aws_iam_role.analytics.arn
 }
+
+output "github_actions_role_arn" {
+  description = "Role que o workflow do GitHub Actions assume via OIDC (usar em aws-actions/configure-aws-credentials)"
+  value       = module.github_oidc.role_arn
+}

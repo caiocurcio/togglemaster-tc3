@@ -118,4 +118,9 @@ def update_flag(name):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    # Usado so em desenvolvimento local (fora do Docker). Em producao quem
+    # sobe o servico e' o Gunicorn (ver Dockerfile), nunca este bloco.
+    # bind em 0.0.0.0 e' intencional: dentro de um container isso e' o que
+    # permite o Kubernetes/Docker alcancar o processo - nao expoe nada que
+    # o Service/Ingress do K8s ja nao decida expor.
+    app.run(host="0.0.0.0", port=5000)  # nosec B104

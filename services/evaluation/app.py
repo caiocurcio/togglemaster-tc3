@@ -61,7 +61,13 @@ def decide(flag_and_rules, user_id):
         return False
     if user_id in flag_and_rules["user_whitelist"]:
         return True
-    bucket = int(hashlib.md5(user_id.encode("utf-8")).hexdigest(), 16) % 100
+    # MD5 aqui NAO tem nenhum uso criptografico/de seguranca - e' so uma forma
+    # rapida e bem distribuida de transformar o user_id num numero de 0 a 99
+    # (bucketing) pra decidir consistentemente quem cai no rollout percentual.
+    # usedforsecurity=False deixa isso explicito (Python 3.9+) e evita o
+    # falso positivo do scanner de seguranca (bandit B324).
+    digest = hashlib.md5(user_id.encode("utf-8"), usedforsecurity=False)
+    bucket = int(digest.hexdigest(), 16) % 100
     return bucket < flag_and_rules["rollout_percentage"]
 
 
@@ -107,4 +113,9 @@ def evaluate(flag_name):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    # Usado so em desenvolvimento local (fora do Docker). Em producao quem
+    # sobe o servico e' o Gunicorn (ver Dockerfile), nunca este bloco.
+    # bind em 0.0.0.0 e' intencional: dentro de um container isso e' o que
+    # permite o Kubernetes/Docker alcancar o processo - nao expoe nada que
+    # o Service/Ingress do K8s ja nao decida expor.
+    app.run(host="0.0.0.0", port=5000)  # nosec B104

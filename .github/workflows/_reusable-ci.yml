@@ -1,0 +1,130 @@
+name: CI reutilizavel (lint, test, SAST, SCA, build, scan e push)
+
+# "workflow_call" transforma este arquivo em algo que outros workflows podem
+# chamar como se fosse uma função - evita repetir os mesmos ~10 steps 5 vezes
+# (um por microsservico). Quem chama passa qual servico rodar em `inputs.service`.
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: "Nome do microsservico: pasta em services/<service> e nome do repositorio ECR"
+        required: true
+        type: string
+    outputs:
+      image_tag:
+        description: "Tag da imagem publicada no ECR (sha curto do commit)"
+        value: ${{ jobs.build-scan-push.outputs.image_tag }}
+
+# id-token: write e' o que permite este workflow pedir um token OIDC ao
+# GitHub para depois trocar por credenciais temporarias da AWS - sem essa
+# permissao a action aws-actions/configure-aws-credentials falha.
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: togglemaster/${{ inputs.service }}
+
+jobs:
+  lint:
+    name: Lint (flake8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install flake8
+      - name: flake8 (usa o .flake8 da raiz do repo)
+        run: flake8 "services/${{ inputs.service }}"
+
+  test:
+    name: Testes unitarios (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Instala dependencias do servico
+        working-directory: services/${{ inputs.service }}
+        run: |
+          pip install -r requirements.txt
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+      - name: Roda pytest
+        working-directory: services/${{ inputs.service }}
+        run: pytest -v
+
+  sast:
+    name: SAST (bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install bandit
+      # -ll = so falha (exit code != 0) em achados de severidade MEDIUM ou HIGH;
+      # ignora LOW (muito ruidoso e raramente acionavel num projeto pequeno).
+      - name: Bandit - analise estatica de seguranca do codigo Python
+        run: bandit -r "services/${{ inputs.service }}" -x "services/${{ inputs.service }}/tests" -ll
+
+  sca:
+    name: SCA (trivy - dependencias do requirements.txt)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem scan - bloqueia em vulnerabilidade CRITICAL
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: fs
+          scan-ref: services/${{ inputs.service }}
+          severity: CRITICAL
+          exit-code: "1"
+
+  build-scan-push:
+    name: Build da imagem, scan e push no ECR
+    runs-on: ubuntu-latest
+    needs: [lint, test, sast, sca]
+    outputs:
+      image_tag: ${{ steps.tag.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Define a tag da imagem (sha curto do commit)
+        id: tag
+        run: echo "value=$(echo "$GITHUB_SHA" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      # OIDC: nenhuma access key fixa guardada como secret do repositorio.
+      # A role (criada via Terraform em infra/modules/github-oidc) so aceita
+      # ser assumida por um token vindo deste repositorio, e so tem permissao
+      # de dar push/pull nos ECRs deste projeto.
+      - name: Autentica na AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login no ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build da imagem Docker
+        working-directory: services/${{ inputs.service }}
+        run: docker build -t "local/${{ inputs.service }}:${{ steps.tag.outputs.value }}" .
+
+      - name: Trivy image scan - bloqueia em vulnerabilidade CRITICAL
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: local/${{ inputs.service }}:${{ steps.tag.outputs.value }}
+          severity: CRITICAL
+          exit-code: "1"
+
+      - name: Tag e push no ECR
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          docker tag "local/${{ inputs.service }}:${{ steps.tag.outputs.value }}" \
+            "$REGISTRY/${{ env.ECR_REPOSITORY }}:${{ steps.tag.outputs.value }}"
+          docker push "$REGISTRY/${{ env.ECR_REPOSITORY }}:${{ steps.tag.outputs.value }}"

@@ -176,3 +176,16 @@ resource "aws_iam_role_policy" "analytics" {
   role   = aws_iam_role.analytics.id
   policy = data.aws_iam_policy_document.analytics_permissions.json
 }
+
+# ---------------------------------------------------------------------------
+# GitHub Actions -> AWS via OIDC (sem access key fixa). A role criada aqui
+# so pode ser assumida por um workflow rodando no repositorio configurado em
+# var.github_repo, e so tem permissao de dar push/pull nos ECRs deste projeto.
+# ---------------------------------------------------------------------------
+module "github_oidc" {
+  source = "../../modules/github-oidc"
+
+  project_name        = var.project_name
+  github_repo         = var.github_repo
+  ecr_repository_arns = values(module.ecr.repository_arns)
+}
