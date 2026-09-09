@@ -54,6 +54,11 @@ jobs:
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
       - name: Roda pytest
         working-directory: services/${{ inputs.service }}
+        # "python -m pytest" (em vez de so' "pytest") garante que o diretorio
+        # atual (services/<servico>, onde mora o app.py) entra no sys.path.
+        # Sem o "python -m", o pytest só' adiciona services/<servico>/tests
+        # ao path (porque tests/ nao tem __init__.py) e o "import app" dos
+        # testes falha com ModuleNotFoundError.
         run: python -m pytest -v
 
   sast:
@@ -82,6 +87,9 @@ jobs:
           scan-ref: services/${{ inputs.service }}
           severity: CRITICAL
           exit-code: "1"
+          # Lista de CVEs aceitas (com justificativa) na raiz do repo - ver
+          # o arquivo .trivyignore para o motivo de cada uma.
+          trivyignores: .trivyignore
 
   build-scan-push:
     name: Build da imagem, scan e push no ECR
@@ -120,6 +128,10 @@ jobs:
           image-ref: local/${{ inputs.service }}:${{ steps.tag.outputs.value }}
           severity: CRITICAL
           exit-code: "1"
+          # Mesma lista de CVEs aceitas usada no job "sca" (arquivo na raiz
+          # do repo). Cobre os achados que vem da camada base do Debian
+          # (python:3.11-slim), fora do nosso controle direto.
+          trivyignores: .trivyignore
 
       - name: Tag e push no ECR
         env:

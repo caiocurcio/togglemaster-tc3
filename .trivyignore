@@ -1,0 +1,31 @@
+# Vulnerabilidades aceitas nesta scan (SCA e imagem), com justificativa.
+#
+# As 3 CVEs abaixo pertencem ao pacote "perl", que vem embutido na camada
+# base do Debian 13 (trixie) usada pela imagem oficial python:3.11-slim -
+# NAO sao uma dependencia da nossa aplicacao. Nenhum dos microsservicos
+# invoca Perl, extrai arquivos .tar de origem nao confiavel, nem compila
+# expressoes regulares fornecidas por usuarios via Perl.
+#
+# Verificado em 09/09/2026 no rastreador oficial de seguranca do Debian
+# (security-tracker.debian.org): nenhuma das 3 tem correcao disponivel em
+# trixie OU bookworm (as duas releases estaveis atuais) - so existe pacote
+# corrigido em unstable/sid, que nao e apropriado usar em producao. O
+# proprio time de seguranca do Debian classificou as 3 como "no-dsa" /
+# "postponed" (problema menor, nao justifica um update de seguranca
+# dedicado), mesmo o Trivy reportando severidade CRITICAL pelo score CVSS
+# puro (sem considerar o contexto de uso).
+#
+# Reavaliar esta lista periodicamente (ex.: a cada atualizacao da imagem
+# base) para remover entradas que ja tenham correcao publicada.
+
+# perl: processamento incorreto de regex muito grandes (nao usamos Perl
+# para processar regex vindas de entrada de usuario)
+CVE-2026-13221
+
+# perl-archive-tar: path traversal via symlink malicioso durante extracao
+# de .tar (nunca extraimos arquivos .tar de fontes nao confiaveis)
+CVE-2026-42496
+
+# perl: heap buffer overflow ao compilar regex em builds 32-bit (nossa
+# imagem e 64-bit; alem disso, nao invocamos Perl em nenhum lugar)
+CVE-2026-8376
