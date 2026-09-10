@@ -1,0 +1,14 @@
+# Namespace onde os 5 microsservicos do ToggleMaster rodam. E' o mesmo nome
+# usado na trust policy das roles IRSA (infra/envs/dev/main.tf ->
+# var.k8s_namespace = "togglemaster") - se esse nome mudar aqui, tem que
+# mudar la tambem (e reaplicar o Terraform), senao o "evaluation" e o
+# "analytics" perdem a permissao de assumir a role via IRSA.
+#
+# Por enquanto isso e' aplicado manualmente (kubectl apply -f) antes do
+# ArgoCD existir (Task 11). Depois, decidir se o proprio ArgoCD passa a
+# gerenciar o namespace (app-of-apps) ou se continua sendo um passo manual
+# de bootstrap - namespaces mudam raramente, entao nao e' urgente.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: togglemaster

@@ -1,0 +1,59 @@
+# DB_PASSWORD vem do Secret "targeting-secrets" (criado manualmente com
+# kubectl - ver docs/gitops-secrets.md). Nunca comitado em Git.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: targeting
+  namespace: togglemaster
+  labels:
+    app: targeting
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: targeting
+  template:
+    metadata:
+      labels:
+        app: targeting
+    spec:
+      serviceAccountName: targeting
+      containers:
+        - name: targeting
+          image: 383996694340.dkr.ecr.us-east-1.amazonaws.com/togglemaster/targeting:67eacfe
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          env:
+            - name: DB_HOST
+              value: "togglemaster-targeting.cgj4a2auutt3.us-east-1.rds.amazonaws.com"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "targeting"
+            - name: DB_USER
+              value: "targeting_app"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: targeting-secrets
+                  key: db-password
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi

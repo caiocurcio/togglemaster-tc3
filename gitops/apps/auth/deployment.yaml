@@ -1,0 +1,68 @@
+# Credenciais (DB_PASSWORD, JWT_SECRET) NUNCA aparecem aqui - vem de um
+# Secret chamado "auth-secrets" que voce cria uma vez com kubectl (ver
+# docs/gitops-secrets.md). Esse Secret nao mora dentro de gitops/apps/ de
+# proposito: se ele estivesse aqui, o ArgoCD tentaria sincronizar/recriar
+# ele a partir do Git (que nao tem - e nem pode ter - a senha real) e
+# derrubaria as credenciais reais do cluster.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+  namespace: togglemaster
+  labels:
+    app: auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth
+  template:
+    metadata:
+      labels:
+        app: auth
+    spec:
+      serviceAccountName: auth
+      containers:
+        - name: auth
+          image: 383996694340.dkr.ecr.us-east-1.amazonaws.com/togglemaster/auth:67eacfe
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          env:
+            - name: DB_HOST
+              value: "togglemaster-auth.cgj4a2auutt3.us-east-1.rds.amazonaws.com"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "auth"
+            - name: DB_USER
+              value: "auth_app"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: db-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: jwt-secret
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi

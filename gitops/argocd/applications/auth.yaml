@@ -1,0 +1,28 @@
+# Application do ArgoCD pro servico "auth". Isso NAO substitui o
+# gitops/apps/auth/*.yaml (que continua sendo o "o que" implantar) - e' o
+# "quem/onde" implanta: aponta o ArgoCD pra esse caminho do repo e liga o
+# sync automatico (qualquer commit em gitops/apps/auth/ vira deploy sozinho).
+#
+# syncPolicy.automated.selfHeal: true significa que se alguem mudar algo na
+# mao no cluster (kubectl edit, escalar réplica manualmente etc.), o ArgoCD
+# desfaz e volta pro que está no Git - o Git e' sempre a fonte da verdade.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: auth
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/caiocurcio/togglemaster-tc3.git
+    targetRevision: main
+    path: gitops/apps/auth
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: togglemaster
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

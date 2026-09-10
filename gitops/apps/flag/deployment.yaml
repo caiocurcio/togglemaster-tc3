@@ -1,0 +1,61 @@
+# DB_PASSWORD vem do Secret "flag-secrets" (criado manualmente com kubectl -
+# ver docs/gitops-secrets.md). Nunca comitado em Git.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flag
+  namespace: togglemaster
+  labels:
+    app: flag
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flag
+  template:
+    metadata:
+      labels:
+        app: flag
+    spec:
+      serviceAccountName: flag
+      containers:
+        - name: flag
+          image: 383996694340.dkr.ecr.us-east-1.amazonaws.com/togglemaster/flag:67eacfe
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          env:
+            - name: DB_HOST
+              value: "togglemaster-flag.cgj4a2auutt3.us-east-1.rds.amazonaws.com"
+            - name: DB_PORT
+              value: "5432"
+            # "flagdb", nao "flag": "flag" e nome reservado pela API do RDS
+            # pro parametro DBName (ver infra/envs/dev/main.tf).
+            - name: DB_NAME
+              value: "flagdb"
+            - name: DB_USER
+              value: "flag_app"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: flag-secrets
+                  key: db-password
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi

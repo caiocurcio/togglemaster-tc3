@@ -1,0 +1,17 @@
+# ClusterIP: o auth so precisa ser alcancado de DENTRO do cluster (pelos
+# outros servicos ou por um port-forward/Ingress futuro), nunca direto da
+# internet.
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth
+  namespace: togglemaster
+  labels:
+    app: auth
+spec:
+  type: ClusterIP
+  selector:
+    app: auth
+  ports:
+    - port: 5000
+      targetPort: 5000

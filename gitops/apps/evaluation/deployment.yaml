@@ -1,0 +1,61 @@
+# Sem Secret nenhum aqui: o "evaluation" nao usa senha pra falar com a AWS -
+# ele assume a role IRSA da sua ServiceAccount (ver serviceaccount.yaml) pra
+# publicar no SQS. FLAG_SERVICE_URL/TARGETING_SERVICE_URL usam o DNS curto
+# do Kubernetes (nome do Service, mesmo namespace) - e' o mesmo valor
+# default do app.py, setados aqui so pra deixar explicito.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evaluation
+  namespace: togglemaster
+  labels:
+    app: evaluation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: evaluation
+  template:
+    metadata:
+      labels:
+        app: evaluation
+    spec:
+      serviceAccountName: evaluation
+      containers:
+        - name: evaluation
+          image: 383996694340.dkr.ecr.us-east-1.amazonaws.com/togglemaster/evaluation:67eacfe
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          env:
+            - name: FLAG_SERVICE_URL
+              value: "http://flag:5000"
+            - name: TARGETING_SERVICE_URL
+              value: "http://targeting:5000"
+            - name: REDIS_HOST
+              value: "togglemaster-redis.yer9pn.0001.use1.cache.amazonaws.com"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: SQS_QUEUE_URL
+              value: "https://sqs.us-east-1.amazonaws.com/383996694340/toggle-master-evaluation-events"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
