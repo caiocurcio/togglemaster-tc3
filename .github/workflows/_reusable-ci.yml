@@ -1,4 +1,4 @@
-name: CI reutilizavel (lint, test, SAST, SCA, build, scan e push)
+name: CI reutilizavel (lint, test, SAST, SCA, build, scan, push e atualiza gitops)
 
 # "workflow_call" transforma este arquivo em algo que outros workflows podem
 # chamar como se fosse uma função - evita repetir os mesmos ~10 steps 5 vezes
@@ -15,12 +15,20 @@ on:
         description: "Tag da imagem publicada no ECR (sha curto do commit)"
         value: ${{ jobs.build-scan-push.outputs.image_tag }}
 
-# id-token: write e' o que permite este workflow pedir um token OIDC ao
-# GitHub para depois trocar por credenciais temporarias da AWS - sem essa
-# permissao a action aws-actions/configure-aws-credentials falha.
+# Permissoes no nivel do workflow = o TETO que qualquer job aqui dentro pode
+# pedir (nenhum job consegue pedir mais que isso, so' menos). id-token: write
+# e' o que permite pedir um token OIDC ao GitHub pra trocar por credenciais
+# temporarias da AWS. contents: write e' novo (Task 12) - so' o job
+# "update-gitops" de fato usa pra dar commit/push; os demais jobs abaixo
+# reduzem explicitamente pra "read" (principio de minimo privilegio).
+#
+# IMPORTANTE: quem CHAMA este workflow (ci-<servico>.yml) tambem precisa
+# declarar "contents: write" nas permissoes dele - a permissao efetiva e' a
+# interseccao das duas, entao se o chamador continuar em "read" o push do
+# job update-gitops falha por falta de permissao, mesmo com isso aqui certo.
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 env:
   AWS_REGION: us-east-1
@@ -30,6 +38,8 @@ jobs:
   lint:
     name: Lint (flake8)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -42,6 +52,8 @@ jobs:
   test:
     name: Testes unitarios (pytest)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -64,6 +76,8 @@ jobs:
   sast:
     name: SAST (bandit)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -78,6 +92,8 @@ jobs:
   sca:
     name: SCA (trivy - dependencias do requirements.txt)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Trivy filesystem scan - bloqueia em vulnerabilidade CRITICAL
@@ -95,6 +111,9 @@ jobs:
     name: Build da imagem, scan e push no ECR
     runs-on: ubuntu-latest
     needs: [lint, test, sast, sca]
+    permissions:
+      id-token: write
+      contents: read
     outputs:
       image_tag: ${{ steps.tag.outputs.value }}
     steps:
@@ -140,3 +159,58 @@ jobs:
           docker tag "local/${{ inputs.service }}:${{ steps.tag.outputs.value }}" \
             "$REGISTRY/${{ env.ECR_REPOSITORY }}:${{ steps.tag.outputs.value }}"
           docker push "$REGISTRY/${{ env.ECR_REPOSITORY }}:${{ steps.tag.outputs.value }}"
+
+  update-gitops:
+    name: Atualiza a tag da imagem no GitOps (Task 12)
+    runs-on: ubuntu-latest
+    needs: build-scan-push
+    # So roda em push de verdade na main - nunca em pull_request (PR ainda
+    # nao foi mergeado, entao nao faz sentido - e nem teria permissao de
+    # escrita - atualizar o que esta rodando em producao a partir dele).
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Atualiza gitops/apps/<servico>/deployment.yaml com a nova tag
+        env:
+          SERVICE: ${{ inputs.service }}
+          IMAGE_TAG: ${{ needs.build-scan-push.outputs.image_tag }}
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          MANIFEST="gitops/apps/${SERVICE}/deployment.yaml"
+
+          # Troca so' o que vem depois de ".../togglemaster/<servico>:" na
+          # linha "image:", preservando o resto da linha (indentacao, etc.).
+          sed -i "s|\(image: .*togglemaster/${SERVICE}:\).*|\1${IMAGE_TAG}|" "$MANIFEST"
+
+          git add "$MANIFEST"
+
+          if git diff --cached --quiet; then
+            echo "Tag ja estava atualizada (${IMAGE_TAG}) - nada para commitar."
+            exit 0
+          fi
+
+          git commit -m "chore(gitops): atualiza imagem de ${SERVICE} para ${IMAGE_TAG}"
+
+          # Retry com "pull --rebase": se outro servico (build disparado no
+          # mesmo push, ex.: commit que mexeu em varios services/ ao mesmo
+          # tempo) already deu push antes deste job terminar, o primeiro
+          # "git push" seria rejeitado por a branch local estar desatualizada.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "Push feito com sucesso (tentativa $i)."
+              exit 0
+            fi
+            echo "Push rejeitado (provavelmente outro servico commitou ao mesmo tempo) - tentativa $i, atualizando e tentando de novo..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 5 + 1))
+          done
+
+          echo "Nao foi possivel dar push apos 5 tentativas." >&2
+          exit 1

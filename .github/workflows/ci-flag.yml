@@ -15,9 +15,14 @@ on:
       - ".github/workflows/_reusable-ci.yml"
   workflow_dispatch: {}
 
+# contents: write (Task 12) - o job "update-gitops" do workflow reutilizavel
+# precisa dar commit/push em gitops/apps/flag/deployment.yaml apos publicar
+# a imagem no ECR. Sem isso aqui, mesmo com o reusable-ci.yml pedindo
+# "write", a permissao efetiva ainda cairia pra "read" (o chamador sempre
+# limita o que o workflow chamado pode fazer).
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 jobs:
   ci:
