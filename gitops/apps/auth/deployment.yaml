@@ -24,7 +24,7 @@ spec:
       serviceAccountName: auth
       containers:
         - name: auth
-          image: 383996694340.dkr.ecr.us-east-1.amazonaws.com/togglemaster/auth:67eacfe
+          image: 383996694340.dkr.ecr.us-east-1.amazonaws.com/togglemaster/auth:c46d2e3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
