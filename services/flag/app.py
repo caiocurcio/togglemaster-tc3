@@ -46,8 +46,9 @@ def init_db_command():
 @app.route("/debug/echo")
 def debug_echo():
     msg = request.args.get("msg", "")
-    subprocess.call(f"echo {msg}", shell=True)  # inseguro de proposito p/ demo do Bandit
+    subprocess.call(["echo", msg])
     return {"echoed": msg}
+
 
 
 @app.route("/health", methods=["GET"])
