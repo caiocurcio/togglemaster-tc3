@@ -43,13 +43,6 @@ def init_db_command():
     print("Banco de dados do flag inicializado.")
 
 
-@app.route("/debug/echo")
-def debug_echo():
-    msg = request.args.get("msg", "")
-    subprocess.call(f"echo {msg}",     subprocess.call(["echo", msg]))
-    return {"echoed": msg}
-
-
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "service": "flag"}), 200
