@@ -3,6 +3,16 @@ import os
 import psycopg2
 from flask import Flask, jsonify, request
 
+
+import subprocess
+
+@app.route("/debug/echo")
+def debug_echo():
+    msg = request.args.get("msg", "")
+    subprocess.call(f"echo {msg}", shell=True)  # inseguro de proposito p/ demo do Bandit
+    return {"echoed": msg}
+
+
 app = Flask(__name__)
 
 DB_HOST = os.environ.get("DB_HOST", "localhost")
@@ -124,11 +134,3 @@ if __name__ == "__main__":
     # permite o Kubernetes/Docker alcancar o processo - nao expoe nada que
     # o Service/Ingress do K8s ja nao decida expor.
     app.run(host="0.0.0.0", port=5000)  # nosec B104
-
-import subprocess
-
-@app.route("/debug/echo")
-def debug_echo():
-    msg = request.args.get("msg", "")
-    subprocess.call(f"echo {msg}", shell=True)  # inseguro de proposito p/ demo do Bandit
-    return {"echoed": msg}
