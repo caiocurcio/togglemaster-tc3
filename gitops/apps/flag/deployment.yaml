@@ -20,7 +20,7 @@ spec:
       serviceAccountName: flag
       containers:
         - name: flag
-          image: 383996694340.dkr.ecr.us-east-1.amazonaws.com/togglemaster/flag:87694e4
+          image: 383996694340.dkr.ecr.us-east-1.amazonaws.com/togglemaster/flag:8c8eab4
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
