@@ -1,7 +1,9 @@
 import os
+import subprocess
 
 import psycopg2
 from flask import Flask, jsonify, request
+
 
 app = Flask(__name__)
 
@@ -39,6 +41,7 @@ def init_db_command():
     """Cria as tabelas do serviço de flag (idempotente)."""
     init_db()
     print("Banco de dados do flag inicializado.")
+
 
 @app.route("/debug/echo")
 def debug_echo():
