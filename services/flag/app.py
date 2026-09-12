@@ -1,4 +1,12 @@
 import os
+import subprocess
+
+@app.route("/debug/echo")
+def debug_echo():
+    msg = request.args.get("msg", "")
+    subprocess.call(f"echo {msg}", shell=True)  # inseguro de proposito p/ demo do Bandit
+    return {"echoed": msg}
+
 
 import psycopg2
 from flask import Flask, jsonify, request
