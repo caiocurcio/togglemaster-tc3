@@ -46,13 +46,6 @@ def health():
     return jsonify({"status": "ok", "service": "flag"}), 200
 
 
-@app.route("/debug/echo")
-def debug_echo():
-    msg = request.args.get("msg", "")
-    subprocess.call(f"echo {msg}", shell=True)  # inseguro de proposito p/ demo do Bandit
-    return {"echoed": msg}
-
-
 @app.route("/flags", methods=["POST"])
 def create_flag():
     data = request.get_json(silent=True) or {}
